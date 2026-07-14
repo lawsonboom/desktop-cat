@@ -8,6 +8,7 @@ private final class CatView: NSView {
     private var direction: CGFloat = 1
     private var targetX: CGFloat = 110
     private var lastTick = Date()
+    private var nextReminderAt = Date().addingTimeInterval(3600)
     private var feedback = ""
     private var feedbackUntil = Date.distantPast
 
@@ -23,6 +24,7 @@ private final class CatView: NSView {
     func pet() { showFeedback("喵") }
     func feed() { activity = .eating; showFeedback("谢谢你") }
     func play() { activity = .playing; showFeedback("来玩吧") }
+    func remindWater() { showFeedback("喝点水吧") }
 
     private func showFeedback(_ text: String) {
         feedback = text
@@ -39,19 +41,26 @@ private final class CatView: NSView {
 
         if activity == .idle && Int.random(in: 0...900) == 0 {
             activity = .walking
-            targetX = CGFloat.random(in: 72...148)
-            direction = targetX >= bounds.midX ? 1 : -1
+            let desktop = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+            targetX = CGFloat.random(in: (desktop.minX + 90)...(desktop.maxX - 90))
+            direction = targetX >= (window?.frame.midX ?? targetX) ? 1 : -1
         }
 
         if activity == .walking {
             let speed: CGFloat = 34
             let step = CGFloat(delta) * speed
-            let nextX = frame.midX + step * direction
+            let nextX = (window?.frame.midX ?? targetX) + step * direction
             if direction > 0 ? nextX >= targetX : nextX <= targetX {
                 activity = .idle
             } else {
-                setFrameOrigin(NSPoint(x: frame.origin.x + step * direction, y: frame.origin.y))
+                let origin = window?.frame.origin ?? .zero
+                window?.setFrameOrigin(NSPoint(x: origin.x + step * direction, y: origin.y))
             }
+        }
+
+        if now >= nextReminderAt {
+            remindWater()
+            nextReminderAt = now.addingTimeInterval(3600)
         }
 
         if activity == .eating && Int(phase * 10) % 45 == 0 { activity = .idle }
@@ -79,8 +88,14 @@ private final class CatView: NSView {
         let leftEar = triangle([(38, 52), (45, 5), (78, 35)])
         let rightEar = triangle([(122, 35), (155, 5), (162, 52)])
 
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.34)
+        shadow.shadowBlurRadius = 9
+        shadow.shadowOffset = NSSize(width: 0, height: -3)
+        shadow.set()
         NSColor(calibratedWhite: 0.055, alpha: 1).setFill()
         NSBezierPath(ovalIn: body).fill(); NSBezierPath(ovalIn: head).fill(); leftEar.fill(); rightEar.fill()
+        NSShadow().set()
 
         NSColor(calibratedWhite: 0.19, alpha: 1).setFill()
         NSBezierPath(ovalIn: NSRect(x: 55, y: 46, width: 31, height: 38)).fill()
@@ -105,6 +120,14 @@ private final class CatView: NSView {
         NSBezierPath(ovalIn: NSRect(x: 74, y: 143, width: 26, height: 15)).fill()
         NSBezierPath(ovalIn: NSRect(x: 106, y: 143, width: 26, height: 15)).fill()
 
+        let whiskers = NSBezierPath()
+        whiskers.lineWidth = 1
+        whiskers.move(to: NSPoint(x: 82, y: 88)); whiskers.line(to: NSPoint(x: 28, y: 82))
+        whiskers.move(to: NSPoint(x: 82, y: 94)); whiskers.line(to: NSPoint(x: 24, y: 96))
+        whiskers.move(to: NSPoint(x: 138, y: 88)); whiskers.line(to: NSPoint(x: 192, y: 82))
+        whiskers.move(to: NSPoint(x: 138, y: 94)); whiskers.line(to: NSPoint(x: 196, y: 96))
+        NSColor.white.withAlphaComponent(0.42).setStroke(); whiskers.stroke()
+
         if activity == .eating {
             NSColor(calibratedRed: 0.84, green: 0.55, blue: 0.25, alpha: 1).setFill()
             NSBezierPath(ovalIn: NSRect(x: 166, y: 142, width: 28, height: 18)).fill()
@@ -125,6 +148,9 @@ private final class CatView: NSView {
         let bubble = NSRect(x: 42, y: -2, width: 136, height: 30)
         NSColor(calibratedWhite: 1, alpha: 0.94).setFill()
         NSBezierPath(roundedRect: bubble, xRadius: 12, yRadius: 12).fill()
+        let pointer = NSBezierPath()
+        pointer.move(to: NSPoint(x: 64, y: 28)); pointer.line(to: NSPoint(x: 58, y: 38)); pointer.line(to: NSPoint(x: 78, y: 28)); pointer.close()
+        pointer.fill()
         let style = NSMutableParagraphStyle(); style.alignment = .center
         let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor(calibratedWhite: 0.12, alpha: 1), .paragraphStyle: style]
         text.draw(in: bubble.insetBy(dx: 8, dy: 7), withAttributes: attributes)
@@ -137,6 +163,7 @@ private final class ActionTarget: NSObject {
     @objc func pet() { catView?.pet() }
     @objc func feed() { catView?.feed() }
     @objc func play() { catView?.play() }
+    @objc func remindWater() { catView?.remindWater() }
 }
 
 private final class CatWindowController: NSObject {
@@ -157,6 +184,7 @@ private final class CatWindowController: NSObject {
     }
 
     func show() { window.orderFrontRegardless(); catView.start() }
+    func remindWater() { catView.remindWater() }
 }
 
 private final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -166,15 +194,18 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         controller = CatWindowController(); controller?.show()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem?.button?.title = "🐈"
+        statusItem?.button?.title = "Cat"
         let menu = NSMenu()
         menu.addItem(withTitle: "Desktop Cat 正在陪伴", action: nil, keyEquivalent: "")
         menu.addItem(.separator())
+        menu.addItem(withTitle: "测试喝水提醒", action: #selector(testReminder), keyEquivalent: "")
         menu.addItem(withTitle: "退出", action: #selector(quit), keyEquivalent: "q")
-        menu.items.last?.target = self
+        menu.items[2].target = self
+        menu.items[3].target = self
         statusItem?.menu = menu
     }
 
+    @objc private func testReminder() { controller?.remindWater() }
     @objc private func quit() { NSApplication.shared.terminate(nil) }
 }
 
