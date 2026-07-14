@@ -7,13 +7,13 @@
 - [x] Record frozen decisions.
 - [x] Define V1 scope.
 - [x] Define Sprint 1 goal.
-- [ ] Review scaffold with founder.
-- [ ] Choose first prototype stack.
-- [ ] Start first runnable macOS app task.
+- [x] Review scaffold with founder.
+- [x] Choose first prototype stack: native Swift and AppKit.
+- [x] Start first runnable macOS app task.
 
 ## Sprint 1 Prototype Task
 
-Do not begin until the scaffold is reviewed.
+The scaffold has been reviewed; keep this task limited to the first runnable prototype.
 
 Goal:
 
@@ -35,4 +35,3 @@ Not allowed:
 - growth systems
 - cloud services
 - complex interactions
-

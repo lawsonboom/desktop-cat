@@ -10,11 +10,11 @@ macOS first.
 
 The expected final install format is a DMG.
 
-## Candidate Stack
+## Sprint 1 Stack
 
-The preferred direction is a lightweight desktop app stack such as Tauri with a simple web UI layer.
+Sprint 1 uses native Swift and AppKit.
 
-This is not yet final. Sprint 1 should not lock in unnecessary dependencies before the first prototype task begins.
+Native AppKit keeps the first macOS prototype dependency-free and gives direct control over transparent windows, desktop-level placement, and low idle overhead. A later UI layer can replace the renderer without changing the behavior boundaries.
 
 ## Core Modules
 
@@ -71,4 +71,3 @@ Resources provide assets and settings.
 ## V1 Constraint
 
 Prefer behavior composition over new assets. A new feature that requires several new animations should move to the backlog unless it directly improves companionship.
-

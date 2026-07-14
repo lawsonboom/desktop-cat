@@ -1,5 +1,9 @@
 # Decisions
 
+## D-012: Sprint 1 Uses Native AppKit
+
+The first macOS prototype uses Swift and AppKit to avoid external runtime dependencies and validate the desktop companion experience quickly. The choice can be revisited after the first runnable prototype.
+
 ## D-001: Companion First
 
 Desktop Cat is a companion product. It should prioritize calm presence over technical spectacle.
@@ -43,4 +47,3 @@ Founder gives natural-language direction. Product Architect converts it into pro
 ## D-011: Checkpoint Rhythm
 
 After about 10 meaningful product conversations, summarize decisions, update project documents, review project health, and place creative ideas in the backlog.
-

@@ -10,7 +10,7 @@ Internal Alpha V1.
 
 ## Current Sprint
 
-Sprint 1: initialize the repository and prepare for the first runnable macOS prototype.
+Sprint 1: build the first runnable macOS prototype.
 
 Sprint 1 target:
 
@@ -52,5 +52,4 @@ Codex implements the tasks, keeps changes small, and updates documentation when 
 
 ## Current Rule
 
-Do not implement application code until the project scaffold and documentation are stable.
-
+Keep the prototype small and runnable. Do not add AI, uploads, reminders, growth, or cloud services to Sprint 1.

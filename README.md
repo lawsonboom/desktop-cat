@@ -41,3 +41,11 @@ Read these files in order:
 4. `ARCHITECTURE.md`
 5. `TODO.md`
 
+## Run The Prototype
+
+```sh
+./scripts/build-app.sh
+open build/DesktopCat.app
+```
+
+The current prototype is native Swift/AppKit. It displays a transparent desktop window with a cartoon black cat, a moving tail, and occasional slow walking.
