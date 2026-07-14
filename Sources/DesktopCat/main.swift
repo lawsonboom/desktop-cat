@@ -1,13 +1,15 @@
 import AppKit
 
-private enum CatMotion { case idle, walking }
+private enum CatActivity { case idle, walking, eating, playing }
 
 private final class CatView: NSView {
     private var phase: CGFloat = 0
-    private var motion: CatMotion = .idle
+    private var activity: CatActivity = .idle
     private var direction: CGFloat = 1
     private var targetX: CGFloat = 110
     private var lastTick = Date()
+    private var feedback = ""
+    private var feedbackUntil = Date.distantPast
 
     override var isFlipped: Bool { true }
 
@@ -18,37 +20,64 @@ private final class CatView: NSView {
         }
     }
 
+    func pet() { showFeedback("喵") }
+    func feed() { activity = .eating; showFeedback("谢谢你") }
+    func play() { activity = .playing; showFeedback("来玩吧") }
+
+    private func showFeedback(_ text: String) {
+        feedback = text
+        feedbackUntil = Date().addingTimeInterval(2.2)
+        activity = .idle
+        needsDisplay = true
+    }
+
     private func tick() {
         let now = Date()
         let delta = min(now.timeIntervalSince(lastTick), 0.1)
         lastTick = now
         phase += CGFloat(delta)
 
-        if motion == .idle && Int.random(in: 0...900) == 0 {
-            motion = .walking
+        if activity == .idle && Int.random(in: 0...900) == 0 {
+            activity = .walking
             targetX = CGFloat.random(in: 72...148)
             direction = targetX >= bounds.midX ? 1 : -1
         }
 
-        if motion == .walking {
-            let step = CGFloat(delta) * 34
+        if activity == .walking {
+            let speed: CGFloat = 34
+            let step = CGFloat(delta) * speed
             let nextX = frame.midX + step * direction
             if direction > 0 ? nextX >= targetX : nextX <= targetX {
-                motion = .idle
+                activity = .idle
             } else {
                 setFrameOrigin(NSPoint(x: frame.origin.x + step * direction, y: frame.origin.y))
             }
         }
+
+        if activity == .eating && Int(phase * 10) % 45 == 0 { activity = .idle }
+        if activity == .playing && Int(phase * 10) % 75 == 0 { activity = .idle }
         needsDisplay = true
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.performDrag(with: event)
+        pet()
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        let menu = NSMenu()
+        menu.addItem(withTitle: "摸摸", action: #selector(ActionTarget.pet), keyEquivalent: "")
+        menu.addItem(withTitle: "喂食", action: #selector(ActionTarget.feed), keyEquivalent: "")
+        menu.addItem(withTitle: "逗猫棒", action: #selector(ActionTarget.play), keyEquivalent: "")
+        menu.items.forEach { $0.target = ActionTarget.shared }
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
     }
 
     override func draw(_ dirtyRect: NSRect) {
         let body = NSRect(x: 42, y: 72, width: 116, height: 78)
         let head = NSRect(x: 30, y: 22, width: 140, height: 96)
-        let leftEar = NSBezierPath()
-        leftEar.move(to: NSPoint(x: 38, y: 52)); leftEar.line(to: NSPoint(x: 45, y: 5)); leftEar.line(to: NSPoint(x: 78, y: 35)); leftEar.close()
-        let rightEar = NSBezierPath()
-        rightEar.move(to: NSPoint(x: 122, y: 35)); rightEar.line(to: NSPoint(x: 155, y: 5)); rightEar.line(to: NSPoint(x: 162, y: 52)); rightEar.close()
+        let leftEar = triangle([(38, 52), (45, 5), (78, 35)])
+        let rightEar = triangle([(122, 35), (155, 5), (162, 52)])
 
         NSColor(calibratedWhite: 0.055, alpha: 1).setFill()
         NSBezierPath(ovalIn: body).fill(); NSBezierPath(ovalIn: head).fill(); leftEar.fill(); rightEar.fill()
@@ -75,7 +104,39 @@ private final class CatView: NSView {
         NSColor(calibratedWhite: 0.11, alpha: 0.65).setFill()
         NSBezierPath(ovalIn: NSRect(x: 74, y: 143, width: 26, height: 15)).fill()
         NSBezierPath(ovalIn: NSRect(x: 106, y: 143, width: 26, height: 15)).fill()
+
+        if activity == .eating {
+            NSColor(calibratedRed: 0.84, green: 0.55, blue: 0.25, alpha: 1).setFill()
+            NSBezierPath(ovalIn: NSRect(x: 166, y: 142, width: 28, height: 18)).fill()
+        }
+
+        if Date() < feedbackUntil { drawBubble(feedback) }
     }
+
+    private func triangle(_ points: [(CGFloat, CGFloat)]) -> NSBezierPath {
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: points[0].0, y: points[0].1))
+        points.dropFirst().forEach { path.line(to: NSPoint(x: $0.0, y: $0.1)) }
+        path.close()
+        return path
+    }
+
+    private func drawBubble(_ text: String) {
+        let bubble = NSRect(x: 42, y: -2, width: 136, height: 30)
+        NSColor(calibratedWhite: 1, alpha: 0.94).setFill()
+        NSBezierPath(roundedRect: bubble, xRadius: 12, yRadius: 12).fill()
+        let style = NSMutableParagraphStyle(); style.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor(calibratedWhite: 0.12, alpha: 1), .paragraphStyle: style]
+        text.draw(in: bubble.insetBy(dx: 8, dy: 7), withAttributes: attributes)
+    }
+}
+
+private final class ActionTarget: NSObject {
+    static let shared = ActionTarget()
+    weak var catView: CatView?
+    @objc func pet() { catView?.pet() }
+    @objc func feed() { catView?.feed() }
+    @objc func play() { catView?.play() }
 }
 
 private final class CatWindowController: NSObject {
@@ -89,13 +150,10 @@ private final class CatWindowController: NSObject {
         window = NSWindow(contentRect: NSRect(origin: origin, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         catView = CatView(frame: NSRect(origin: .zero, size: size))
         super.init()
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.hasShadow = false
-        window.level = .floating
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        window.ignoresMouseEvents = true
+        window.isOpaque = false; window.backgroundColor = .clear; window.hasShadow = false
+        window.level = .floating; window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.contentView = catView
+        ActionTarget.shared.catView = catView
     }
 
     func show() { window.orderFrontRegardless(); catView.start() }
@@ -103,11 +161,24 @@ private final class CatWindowController: NSObject {
 
 private final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: CatWindowController?
-    func applicationDidFinishLaunching(_ notification: Notification) { controller = CatWindowController(); controller?.show() }
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    private var statusItem: NSStatusItem?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        controller = CatWindowController(); controller?.show()
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem?.button?.title = "🐈"
+        let menu = NSMenu()
+        menu.addItem(withTitle: "Desktop Cat 正在陪伴", action: nil, keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "退出", action: #selector(quit), keyEquivalent: "q")
+        menu.items.last?.target = self
+        statusItem?.menu = menu
+    }
+
+    @objc private func quit() { NSApplication.shared.terminate(nil) }
 }
 
-let app = NSApplication.shared
+private let app = NSApplication.shared
 private let delegate = AppDelegate()
 app.delegate = delegate
 app.setActivationPolicy(.accessory)
